@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../../../../mnt/docker/kamila/Qt/Examples/Qt-6.6.0/bluetooth/btscanner"
+		},
+		{
+			"path": "../../../../../mnt/docker/kamila/Qt/Examples/Qt-6.6.0/multimedia/audiosource"
+		},
+		{
+			"path": "../../../../../mnt/docker/kamila/Qt/Examples/Qt-6.6.0/multimedia/audiooutput"
+		},
+		{
+			"path": "../../../../../mnt/docker/kamila/Qt/Examples/Qt-6.6.0/multimedia/audiodevices"
+		},
+		{
+			"path": "../../../../../mnt/docker/kamila/Qt/Examples/Qt-6.6.0/bluetooth/btchat"
+		}
+	],
+	"settings": {}
+}

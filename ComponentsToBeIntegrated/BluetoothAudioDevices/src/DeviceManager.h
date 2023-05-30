@@ -3,6 +3,8 @@
 #define DEVICEMANAGER_H
 
 #include <vector>
+#include <unordered_map>
+#include <map>
 #include <optional>
 #include "Device.h"
 

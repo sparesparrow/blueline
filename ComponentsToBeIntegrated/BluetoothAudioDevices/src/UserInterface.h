@@ -4,9 +4,12 @@
 
 #include <QObject>
 #include <QAbstractListModel>
+#include <QString>
+#include <QVariant>
 #include "BluetoothManager.h"
 #include "DeviceManager.h"
 #include "AudioIOManager.h"
+#include <string>
 
 class DeviceListModel : public QAbstractListModel {
     Q_OBJECT
@@ -44,10 +47,8 @@ public:
     Q_INVOKABLE void removeDevice(const QString& deviceId);
     Q_INVOKABLE QVariant getDevice(const QString& deviceId);
     Q_INVOKABLE void bindAudio(const QVariant& inputDevice, const QVariant& outputDevice);
-    Q_INVOKABLE QVariant getInputDevices();
-    Q_INVOKABLE QVariant getOutputDevices();
 
-    QAbstractListModel* deviceModel() const;
+    DeviceListModel* deviceModel() const;
 
 signals:
     void devicesChanged();

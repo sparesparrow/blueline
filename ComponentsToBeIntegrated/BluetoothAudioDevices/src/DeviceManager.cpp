@@ -1,6 +1,7 @@
 // DeviceManager.cpp
 #include "DeviceManager.h"
 #include <algorithm>
+#include <stdexcept>
 
 void DeviceManager::addDevice(const Device& device) {
     // Check if device already exists

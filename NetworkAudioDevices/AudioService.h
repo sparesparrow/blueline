@@ -1,6 +1,7 @@
 // AudioService.h
 #ifndef AUDIOSERVICE_H
 #define AUDIOSERVICE_H
+
 #include <QObject>
 #include <QByteArray>
 #include <QAudioOutput>
@@ -8,12 +9,20 @@
 #include <QAbstractSocket>
 #include <QBuffer>
 #include <QtMultimedia>
+<<<<<<< HEAD
 #include <QIODevice>
+=======
+#include <memory>
 
-class AudioService : public QObject {
+/**
+ * @brief AudioPlayer is responsible for playing audio data.
+ */
+>>>>>>> 3ce8ad6 (AudioService redesign and factories)
+
+class AudioPlayer : public QObject {
     Q_OBJECT
-
 public:
+<<<<<<< HEAD
     explicit AudioService(QObject* parent = nullptr) 
         : QObject(parent)
         , ssrcIdentifier(0)
@@ -44,51 +53,76 @@ public:
     }
     // receive and play audio data
     void receiveAudioData(const QByteArray& audioData) override {
+=======
+    explicit AudioPlayer(std::unique_ptr<QAudioSink> audioOutput, QObject* parent = nullptr)
+        : QObject(parent), audioOutput(std::move(audioOutput)) {}
+    void receiveAudioData(QByteArray& audioData)
+    {
+>>>>>>> 3ce8ad6 (AudioService redesign and factories)
         QBuffer audioBuffer(&audioData);
         audioBuffer.open(QIODevice::ReadOnly);
         audioOutput->start(&audioBuffer);
     }
-
 private:
-    QAudioOutput* audioOutput;
+    std::unique_ptr<QAudioSink> audioOutput;
 };
 
+/**
+ * @brief AudioStreamer is responsible for streaming audio data.
+ */
 
-/*
-    The AudioStreamer class include the multicast group address and port as member variables.
-    The socket options for multicast TTL and loopback are set to control the behavior of multicast packets.
-    The socket is bound to any available IPv4 address and the specified multicast port.
-    The socket joins the multicast group using the joinMulticastGroup function.
-*/
-// AudioStreamer.h
-class AudioStreamer : public AudioService {
+class AudioStreamer : public QObject {
+    Q_OBJECT
+
 public:
-    explicit AudioStreamer(QObject* parent = nullptr)
-        : AudioService(parent)
-        , multicastGroupAddress("239.255.0.1") // Example multicast group address
-        , multicastPort(12345) // Example multicast port
-    {
-        socket.setSocketOption(QAbstractSocket::MulticastTtlOption, 1); // Set TTL to 1 for local network
-        socket.setSocketOption(QAbstractSocket::MulticastLoopbackOption, true); // Enable loopback for testing
-        socket.bind(QHostAddress::AnyIPv4, multicastPort, QUdpSocket::ReuseAddressHint | QUdpSocket::ShareAddress);
-        socket.joinMulticastGroup(multicastGroupAddress);
+    explicit AudioStreamer(QAbstractSocket* socket, QObject* parent = nullptr)
+        : QObject(parent), socket(socket)
+    {}
+    virtual ~AudioStreamer() {
+        if (socket) {
+            socket->disconnectFromHost();
+        }
     }
-    /* Audio data is converted into a QByteArray stream using QDataStream.
-       Audio stream is then sent to the multicast group using the writeDatagram function of the socket. */
-    void receiveAudioData(const QByteArray& audioData) override {
-        // Create a QByteArray to stream the audio data
+    void receiveAudioData(QByteArray& audioData)
+    {
         QByteArray audioStream;
         QDataStream stream(&audioStream, QIODevice::WriteOnly);
         stream << audioData;
-
-        // Send the audioStream to the multicast group
-        socket.writeDatagram(audioStream, multicastGroupAddress, multicastPort);
+        if (socket->isOpen()) {
+            socket->write(audioStream.data(), audioStream.size());
+        }
     }
-
 private:
-    QHostAddress multicastGroupAddress;
-    quint16 multicastPort;
-    QUdpSocket socket;
+    QSharedPointer<QAbstractSocket> socket;
+};
+
+/**
+ * @brief Class that controls the audio streaming and playing services.
+ */
+class AudioService : public QObject {
+    Q_OBJECT
+public:
+    explicit AudioService(std::unique_ptr<AudioPlayer> player, std::unique_ptr<AudioStreamer> streamer, QObject* parent = nullptr)
+        : QObject(parent), audioPlayer(std::move(player)), audioStreamer(std::move(streamer)) {}
+    void setAudioPlayer(std::unique_ptr<AudioPlayer> player) {
+        audioPlayer = std::move(player);
+    }
+    void setAudioStreamer(std::unique_ptr<AudioStreamer> streamer) {
+        audioStreamer = std::move(streamer);
+    }
+    AudioPlayer* getAudioPlayer() const {
+        return audioPlayer.get();
+    }
+    AudioStreamer* getAudioStreamer() const {
+        return audioStreamer.get();
+    }
+    void setSSRCIdentifier(qint32 ssrcIdentifier) {
+        this->ssrcIdentifier = ssrcIdentifier;
+    }
+private:
+    std::unique_ptr<AudioPlayer> audioPlayer;
+    std::unique_ptr<AudioStreamer> audioStreamer;
+    qint32 ssrcIdentifier;
 };
 
 

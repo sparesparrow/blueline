@@ -2,12 +2,15 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 #include <QMainWindow>
+#include <QApplication>
+#include <QObject>
 #include <QListWidget>
 #include <QPushButton>
 #include <QVBoxLayout>
 #include "NetworkManager.h"
 
-class MainWindow : public QMainWindow {
+class MainWindow : public QMainWindow
+{
     Q_OBJECT
 
 public:

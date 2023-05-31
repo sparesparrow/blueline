@@ -1,7 +1,6 @@
 // InterfaceSocket.h
 #include <QObject>
 #include <QSharedPointer>
-#include "InterfaceSocket.h"
 #include "AudioService.h"
 
 class InterfaceSocket : public QObject {

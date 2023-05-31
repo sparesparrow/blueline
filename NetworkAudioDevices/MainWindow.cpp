@@ -1,6 +1,8 @@
 // MainWindow.cpp
 #include "MainWindow.h"
 #include <QDebug>
+#include <QDebug>
+
 
 MainWindow::MainWindow(NetworkManager* networkManager, QWidget* parent)
     : QMainWindow(parent)

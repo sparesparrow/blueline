@@ -3,7 +3,12 @@
 #define AUDIOSERVICE_H
 #include <QObject>
 #include <QByteArray>
-
+#include <QAudioOutput>
+#include <QAudioFormat>
+#include <QAbstractSocket>
+#include <QBuffer>
+#include <QtMultimedia>
+#include <QIODevice>
 
 class AudioService : public QObject {
     Q_OBJECT
@@ -30,7 +35,7 @@ class AudioPlayer : public AudioService {
 public:
     explicit AudioPlayer(QObject* parent = nullptr)
         : AudioService(parent)
-        , audioOutput(new QAudioOutput(QAudioFormat(), this))
+        , audioOutput(new QAudioOutput(QAudioFormat()))
     {}
 
     // sets the SSRC identifier for synchronization, which can be used for implementing additional features related to synchronization or audio routing.
@@ -39,7 +44,7 @@ public:
     }
     // receive and play audio data
     void receiveAudioData(const QByteArray& audioData) override {
-        QBuffer audioBuffer(&audioData, this);
+        QBuffer audioBuffer(&audioData);
         audioBuffer.open(QIODevice::ReadOnly);
         audioOutput->start(&audioBuffer);
     }

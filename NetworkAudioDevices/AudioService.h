@@ -9,56 +9,19 @@
 #include <QAbstractSocket>
 #include <QBuffer>
 #include <QtMultimedia>
-<<<<<<< HEAD
-#include <QIODevice>
-=======
 #include <memory>
 
 /**
  * @brief AudioPlayer is responsible for playing audio data.
  */
->>>>>>> 3ce8ad6 (AudioService redesign and factories)
 
 class AudioPlayer : public QObject {
     Q_OBJECT
 public:
-<<<<<<< HEAD
-    explicit AudioService(QObject* parent = nullptr) 
-        : QObject(parent)
-        , ssrcIdentifier(0)
-    {}
-
-    virtual ~AudioService() {}
-
-    virtual void setSSRCIdentifier(qint32 ssrcIdentifier) {
-        this->ssrcIdentifier = ssrcIdentifier;
-    }
-
-    virtual void receiveAudioData(const QByteArray &audioData) = 0;
-
-protected:
-    qint32 ssrcIdentifier;
-};
-// AudioPlayer.h
-class AudioPlayer : public AudioService {
-public:
-    explicit AudioPlayer(QObject* parent = nullptr)
-        : AudioService(parent)
-        , audioOutput(new QAudioOutput(QAudioFormat()))
-    {}
-
-    // sets the SSRC identifier for synchronization, which can be used for implementing additional features related to synchronization or audio routing.
-    void setSSRCIdentifier(qint32 ssrcIdentifier) override {
-        this->ssrcIdentifier = ssrcIdentifier;
-    }
-    // receive and play audio data
-    void receiveAudioData(const QByteArray& audioData) override {
-=======
     explicit AudioPlayer(std::unique_ptr<QAudioSink> audioOutput, QObject* parent = nullptr)
         : QObject(parent), audioOutput(std::move(audioOutput)) {}
     void receiveAudioData(QByteArray& audioData)
     {
->>>>>>> 3ce8ad6 (AudioService redesign and factories)
         QBuffer audioBuffer(&audioData);
         audioBuffer.open(QIODevice::ReadOnly);
         audioOutput->start(&audioBuffer);

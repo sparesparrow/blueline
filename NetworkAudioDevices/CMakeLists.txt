@@ -12,12 +12,9 @@ add_executable(
   ${PROJECT_NAME}
   main.cpp
   AudioService.h
-<<<<<<< HEAD
-=======
   AudioServiceFactory.h
   # AudioService.cpp
   # AudioServiceFactory.cpp
->>>>>>> 3ce8ad6 (AudioService redesign and factories)
   NetworkPeer.h
   BroadcastDiscoveryService.h
   # NetworkPeer.cpp

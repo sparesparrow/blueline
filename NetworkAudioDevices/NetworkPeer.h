@@ -1,4 +1,6 @@
-// InterfaceSocket.h
+// NetworkPeer.h
+#ifndef NETWORKPEER_H
+#define NETWORKPEER_H
 #include <QObject>
 #include <QSharedPointer>
 #include "AudioService.h"
@@ -7,8 +9,8 @@ class InterfaceSocket : public QObject {
     Q_OBJECT
 
 public:
-    explicit InterfaceSocket(const QNetworkInterface& networkInterface, QObject* parent = nullptr) 
-        : QObject(parent) 
+    explicit InterfaceSocket(const QNetworkInterface& networkInterface, QObject* parent = nullptr)
+        : QObject(parent)
         , interfaceAddress(networkInterface.addressEntries().first().ip())
         , interfaceName(networkInterface.humanReadableName())
     {
@@ -17,10 +19,15 @@ public:
 
     virtual ~InterfaceSocket() {}
 
-    virtual void startListening(const QHostAddress &groupAddress, quint16 port) = 0;
+    void startListening(const QHostAddress &groupAddress, quint16 port) {
+        socket.bind(interfaceAddress, port, QUdpSocket::ReuseAddressHint | QUdpSocket::ShareAddress);
+        socket.joinMulticastGroup(groupAddress);
+    }
 
 signals:
-    void dataReceived(QByteArray data, QHostAddress sender, quint16 senderPort);
+    void dataReceived(QSharedPointer<QUdpSocket> socket);
+    void dataBytesReceived(QSharedPointer<QByteArray> data, QHostAddress sender, quint16 senderPort);
+    void dataBufferReceived(QSharedPointer<QByteArray> data);
 
 private slots:
     void onReadyRead() {
@@ -31,8 +38,12 @@ private slots:
             
             data.resize(int(socket.pendingDatagramSize()));
             socket.readDatagram(data.data(), data.size(), &sender, &senderPort);
-            
-            emit dataReceived(data, sender, senderPort);
+
+            qDebug("InterfaceSocket::onReadyRead data:|%s| size:|%lli|", data.data(), data.size());
+
+            emit dataReceived(QSharedPointer<QUdpSocket>(&socket));
+            emit dataBytesReceived(QSharedPointer<QByteArray>(&data), sender, senderPort);
+            emit dataBufferReceived(QSharedPointer<QByteArray>(&data));
         }
     }
 
@@ -42,50 +53,17 @@ protected:
     QUdpSocket socket;
 };
 
-// InterfaceSocketServer.h
-class InterfaceSocketServer : public InterfaceSocket {
-public:
-    explicit InterfaceSocketServer(const QNetworkInterface& networkInterface, QObject* parent = nullptr)
-        : InterfaceSocket(networkInterface, parent) {}
-
-    void startListening(const QHostAddress& groupAddress, quint16 port) override {
-        socket.bind(QHostAddress::AnyIPv4, port, QUdpSocket::ReuseAddressHint | QUdpSocket::ShareAddress);
-        socket.joinMulticastGroup(groupAddress);
-    }
-};
-
-// InterfaceSocketClient.h
-class InterfaceSocketClient : public InterfaceSocket {
-public:
-    explicit InterfaceSocketClient(const QNetworkInterface& networkInterface, QObject* parent = nullptr)
-        : InterfaceSocket(networkInterface, parent) {}
-
-    void startListening(const QHostAddress& groupAddress, quint16 port) override {
-        socket.bind(interfaceAddress, port, QUdpSocket::ReuseAddressHint | QUdpSocket::ShareAddress);
-        socket.joinMulticastGroup(groupAddress);
-    }
-};
-
-// InterfaceSocketFactory.h
 class InterfaceSocketFactory {
 public:
-    InterfaceSocketFactory(QNetworkInterface networkInterface)
-        : interfaceAddress(networkInterface.addressEntries().first().ip())
-        , interfaceName(networkInterface.humanReadableName()) {}
-
-    QSharedPointer<InterfaceSocket> createInterfaceSocket(bool server) {
-        if (server)
-            return QSharedPointer<InterfaceSocket>(new InterfaceSocketServer(interfaceName));
-        else
-            return QSharedPointer<InterfaceSocket>(new InterfaceSocketClient(interfaceName));
+    InterfaceSocketFactory(QString interfaceName): interfaceName(interfaceName)
+    {}
+    QSharedPointer<InterfaceSocket> create() {
+        return QSharedPointer<InterfaceSocket>(new InterfaceSocket(QNetworkInterface::interfaceFromName(interfaceName)));
     }
-
 private:
-    QHostAddress interfaceAddress;
     QString interfaceName;
 };
 
-// NetworkPeer.h
 class NetworkPeer : public QObject {
     Q_OBJECT
 
@@ -93,17 +71,22 @@ public:
     NetworkPeer(QSharedPointer<InterfaceSocket> socket, QObject* parent = nullptr)
         : QObject(parent)
         , socket(socket)
-    {
-        if (auto* serverSocket = dynamic_cast<InterfaceSocketServer*>(socket.get())) {
-            audioService = new AudioStreamer(this);
-        } else {
-            audioService = new AudioPlayer(this);
-        }
-
-        connect(socket.get(), &InterfaceSocket::dataReceived, audioService, &AudioService::receiveAudioData);
-    }
-
-private:
+    {}
+protected:
     QSharedPointer<InterfaceSocket> socket;
-    AudioService* audioService;
 };
+
+class NetworkPeerAudioService : public NetworkPeer {
+public:
+    NetworkPeerAudioService(QSharedPointer<InterfaceSocket> socket, std::unique_ptr<AudioService> audioService, QObject* parent = nullptr)
+        : NetworkPeer(socket, parent)
+        , audioService(std::move(audioService))
+    {
+        connect(this->socket.get(), &InterfaceSocket::dataReceived, this->audioService.get(), &AudioService::audioDataReceived);
+        connect(this->socket.get(), &InterfaceSocket::dataBufferReceived, this->audioService.get(), &AudioService::audioBufferReceived);
+    }
+private:
+    std::unique_ptr<AudioService> audioService;
+};
+
+#endif // NETWORKPEER_H

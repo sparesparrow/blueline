@@ -1,4 +1,4 @@
-
+// AudioServiceFactory.h
 #ifndef AUDIOSERVICEFACTORY_H
 #define AUDIOSERVICEFACTORY_H
 
@@ -42,8 +42,11 @@ public:
 
     std::unique_ptr<AudioStreamer> create()
     {
-        auto socket = std::make_unique<QUdpSocket>(parent);
+        QSharedPointer<QUdpSocket> socket = QSharedPointer<QUdpSocket>(new QUdpSocket(parent));
+        socket->setSocketOption(QAbstractSocket::MulticastTtlOption, 1); // Set TTL to 1 for local network
+        socket->setSocketOption(QAbstractSocket::MulticastLoopbackOption, true); // Enable loopback for testing
         socket->bind(multicastGroupAddress, multicastPort, QAbstractSocket::ShareAddress);
+        socket->joinMulticastGroup(multicastGroupAddress);
         return std::make_unique<AudioStreamer>(std::move(socket));
     }
 private:

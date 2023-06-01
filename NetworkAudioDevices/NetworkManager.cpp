@@ -38,7 +38,7 @@ NetworkManager::~NetworkManager()
 
 void NetworkManager::startDiscovery()
 {
-    if (!discoveryTimer.isActive()) {
+    if (!discoveryTimer->isActive()) {
         discoveryTimer.start(5000); // Start discovery every 5 seconds
     }
 }

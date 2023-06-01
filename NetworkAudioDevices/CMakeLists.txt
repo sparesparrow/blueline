@@ -17,6 +17,8 @@ add_executable(
   # AudioServiceFactory.cpp
   NetworkPeer.h
   BroadcastDiscoveryService.h
+  Message.h
+  Job.h
   # NetworkPeer.cpp
   NetworkManager.h
   NetworkManager.cpp

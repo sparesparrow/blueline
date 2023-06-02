@@ -8,11 +8,10 @@
 - Audio stream is then sent to the multicast group using the writeDatagram function of the socket. 
 
 
-
 ### Synchronization Types
 
-
 enum class SyncProto {
+    SSRC,      // Synchronization Source : This is a unique identifier for the audio stream. It's used to distinguish between different streams that are being sent to the same destination.
     NTP,       // Network Time Protocol : This is used to synchronize the clocks of computers over a network. It's not specific to media streams, but it's often used in conjunction with RTP to synchronize the playback of media streams on different devices.
     PTP,       // Precision Time Protocol : This is another protocol for clock synchronization. It's more accurate than NTP and is often used in professional audio and video applications.
     RTSP,      // Real-Time Streaming Protocol : This is a network control protocol designed for use in entertainment and communications systems to control streaming media servers. It's often used in conjunction with RTP.

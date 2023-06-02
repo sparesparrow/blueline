@@ -3,6 +3,8 @@
 #define MESSAGE_H
 #include <memory>
 #include <vector>
+#include <QSharedPointer>
+#include <QByteArray>
 
 using SsrcId = int32_t;
 
@@ -12,7 +14,10 @@ enum class MessageType {
     PeerDiscoveryResponse,
     DeviceInfoRequest,
     DeviceInfoResponse,
-    // TODO More request types...
+    StartAudioStreamRequest,
+    StartAudioStreamResponse,
+    StopAudioStreamRequest,
+    StopAudioStreamResponse,
 };
 
 enum class DeviceType {
@@ -38,7 +43,6 @@ enum class ServiceType {
     WebRTC = 3,
     Repeater = 4,
 };
-
 
 class IMessageData
 {
@@ -86,18 +90,70 @@ public:
     std::vector<HardwareType> deviceHardware;
 };
 
+class AudioMessage : public IMessageData {
+public:
+    explicit AudioMessage(quint16 port): port(port) {}
+    virtual ~AudioMessage() = default;
+    quint16 port;
+};
+
 class Message
 {
 public:
-    Message(MessageType type, std::shared_ptr<IMessageData> data): type(type), data(data)
+    Message(MessageType type, QSharedPointer<IMessageData> data): type(type), data(data)
     {}
     virtual ~Message() = default;
     MessageType getType() const { return type; }
-    std::shared_ptr<IMessageData> getData() const { return data; }
-    int32_t getSize() const { return sizeof(data); }
+    QSharedPointer<IMessageData> getData() const { return data; }
 protected:
     MessageType type;
-    std::shared_ptr<IMessageData> data;
+    QSharedPointer<IMessageData> data;
+};
+// MessageSerial is providing serialization of outgoing messages and deserialization of incoming messages.
+class MessageSerial
+{
+public:
+    MessageSerial() = default;
+    virtual ~MessageSerial() = default;
+    std::shared_ptr<Message> read(QSharedPointer<QByteArray> bytes);
+    QSharedPointer<QByteArray> write(QSharedPointer<Message> message);
+private:
+    std::shared_ptr<Message> message;
 };
 
+
+class StartAudioStreamRequest : public AudioMessage {
+    Q_OBJECT
+public:
+    explicit StartAudioStreamRequest(QSharedPointer<QIODevice> targetDevice, QObject* parent = nullptr)
+        : AudioMessage(parent), targetDevice(targetDevice) {}
+
+    QSharedPointer<QIODevice> getTargetDevice() const { return targetDevice; }
+
+private:
+    QSharedPointer<QIODevice> targetDevice;
+};
+// Define a StartAudioStreamer message
+class StartAudioStreamResponse : public AudioMessage {
+    Q_OBJECT
+public:
+    explicit StartAudioStreamResponse(QSharedPointer<QIODevice> targetDevice, QObject* parent = nullptr)
+        : AudioMessage(parent), targetDevice(targetDevice) {}
+
+    QSharedPointer<QIODevice> getTargetDevice() const { return targetDevice; }
+
+private:
+    QSharedPointer<QIODevice> targetDevice;
+};
+
+// Define a StopAudioStreamer message
+class StopAudioStreamMessage : public AudioMessage {
+    Q_OBJECT
+public:
+    explicit StopAudioStreamerMessage(QObject* parent = nullptr) : AudioMessage(parent) {}
+};
 #endif // MESSAGE_H
+
+
+
+

@@ -10,44 +10,32 @@
 #include <QUdpSocket>
 #include <memory>
 #include "AudioService.h"
+#include "Message.h"
 
-/**
- * @brief Factory class for creating audio players.
- */
 class AudioPlayerFactory {
 public:
     explicit AudioPlayerFactory(QAudioFormat format, QObject* parent = nullptr)
         : format(format), parent(parent)
     {}
     virtual ~AudioPlayerFactory() = default;
-
-    std::unique_ptr<AudioPlayer> create()
+    std::unique_ptr<AudioPlayer> create(QSharedPointer<QIODevice> sourceDevice)
     {
-        return std::make_unique<AudioPlayer>(std::make_unique<QAudioSink>(format, parent));
+        return std::make_unique<AudioPlayer>(sourceDevice, format, parent);
     }
 private:
     QAudioFormat format;
     QObject* parent;
 };
 
-/**
- * @brief Factory class for creating audio streamers.
- */
 class AudioStreamerFactory {
 public:
     explicit AudioStreamerFactory(QHostAddress multicastGroupAddress, quint16 multicastPort, QObject* parent = nullptr)
         : multicastGroupAddress(multicastGroupAddress), multicastPort(multicastPort), parent(parent)
     {}
     virtual ~AudioStreamerFactory() = default;
-
-    std::unique_ptr<AudioStreamer> create()
+    std::unique_ptr<AudioStreamer> create(QSharedPointer<QAbstractSocket> socket)
     {
-        QSharedPointer<QUdpSocket> socket = QSharedPointer<QUdpSocket>(new QUdpSocket(parent));
-        socket->setSocketOption(QAbstractSocket::MulticastTtlOption, 1); // Set TTL to 1 for local network
-        socket->setSocketOption(QAbstractSocket::MulticastLoopbackOption, true); // Enable loopback for testing
-        socket->bind(multicastGroupAddress, multicastPort, QAbstractSocket::ShareAddress);
-        socket->joinMulticastGroup(multicastGroupAddress);
-        return std::make_unique<AudioStreamer>(std::move(socket));
+        return std::make_unique<AudioStreamer>(socket, parent);
     }
 private:
     QHostAddress multicastGroupAddress;
@@ -55,21 +43,21 @@ private:
     QObject* parent;
 };
 
-/**
- * @brief Factory class for creating audio services.
- */
 class AudioServiceFactory {
 public:
-    explicit AudioServiceFactory(QAudioFormat format, QHostAddress multicastGroupAddress, quint16 multicastPort, QObject* parent = nullptr)
-        : playerFactory(format, parent), streamerFactory(multicastGroupAddress, multicastPort, parent), parent(parent)
+    explicit AudioServiceFactory(MessageType type, QAudioFormat format, QHostAddress multicastGroupAddress, quint16 multicastPort, QObject* parent = nullptr)
+        : type(type), playerFactory(format, parent), streamerFactory(multicastGroupAddress, multicastPort, parent), parent(parent)
     {}
     virtual ~AudioServiceFactory() = default;
-
     std::unique_ptr<AudioService> create()
     {
         return std::make_unique<AudioService>(playerFactory.create(), streamerFactory.create());
     }
+    QSharedPointer<AudioService> createAudioService(quint16 port) {
+        return QSharedPointer<AudioService>(new AudioService(type, port));
+    }
 private:
+    MessageType type;
     AudioPlayerFactory playerFactory;
     AudioStreamerFactory streamerFactory;
     QObject* parent;

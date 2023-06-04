@@ -1,8 +1,9 @@
 #include <QDataStream>
 #include <QDebug>
+#include <QIODevice>
 #include "Message.h"
 
-std::shared_ptr<Message> MessageSerial::read(QSharedPointer<QByteArray> bytes)
+QSharedPointer<Message> MessageSerial::read(QSharedPointer<QByteArray> bytes)
 {
     if (bytes->size() <= 0) {
         qDebug("RequestReader::read invalid msg size");
@@ -23,27 +24,28 @@ std::shared_ptr<Message> MessageSerial::read(QSharedPointer<QByteArray> bytes)
         SsrcId ssrcId;
         int32_t svcAnnouncesSize;
         stream >> svcAnnouncesSize;
-        std::vector<ServiceType> svcAnnounces{0, svcAnnouncesSize};
+        std::vector<ServiceType> svcAnnounces;
+        svcAnnounces.reserve(svcAnnouncesSize);
         stream >> ssrcId;
         for (auto& item : svcAnnounces) {
             stream >> item;
         }
-        const auto& messageData = std::make_shared<PeerDiscoveryRequest>(ssrcId, svcAnnounces);
-        return std::make_shared<Message>(type, messageData);
+        QSharedPointer<IMessageData> messageDataPtr = QSharedPointer<IMessageData>::create(PeerDiscoveryRequest(ssrcId, svcAnnounces));
+        return QSharedPointer<Message>::create(type, messageDataPtr);
     }
     case MessageType::PeerDiscoveryResponse:
     {
         SsrcId ssrcId;
         stream >> ssrcId;
-        const auto& messageData = std::make_shared<PeerDiscoveryResponse>(ssrcId);
-        return std::make_shared<Message>(type, messageData);
+        QSharedPointer<IMessageData> messageDataPtr = QSharedPointer<IMessageData>::create(PeerDiscoveryResponse(ssrcId));
+        return QSharedPointer<Message>::create(type, messageDataPtr);
     }
     case MessageType::DeviceInfoRequest:
     {
         SsrcId ssrcId;
         stream >> ssrcId;
-        const auto& messageData = std::make_shared<DeviceInfoRequest>(ssrcId);
-        return std::make_shared<Message>(type, messageData);
+        QSharedPointer<IMessageData> messageDataPtr = QSharedPointer<IMessageData>::create(DeviceInfoRequest(ssrcId));
+        return QSharedPointer<Message>::create(type, messageDataPtr);
     }
     case MessageType::DeviceInfoResponse:
     {
@@ -51,12 +53,12 @@ std::shared_ptr<Message> MessageSerial::read(QSharedPointer<QByteArray> bytes)
         stream >> deviceType;
         int32_t deviceHardwareSize;
         stream >> deviceHardwareSize;
-        std::vector<int32_t> deviceHardware{0, deviceHardwareSize};
+        std::vector<HardwareType> deviceHardware{HardwareType::Unknown, deviceHardwareSize};
         for (auto& item : deviceHardware) {
             stream >> item;
         }
-        const auto& messageData = std::make_shared<DeviceInfoResponse>(deviceType, deviceHardware);
-        return std::make_shared<Message>(type, messageData);
+        QSharedPointer<IMessageData> messageDataPtr = QSharedPointer<IMessageData>::create(DeviceInfoResponse(deviceType, deviceHardware));
+        return QSharedPointer<Message>::create(type, messageDataPtr);
     }
     case MessageType::StartAudioStreamRequest:
     case MessageType::StartAudioStreamResponse:
@@ -65,9 +67,8 @@ std::shared_ptr<Message> MessageSerial::read(QSharedPointer<QByteArray> bytes)
     {
         quint16 port;
         stream >> port;
-        auto audioMsg = std::make_shared<AudioMessage>(port);
-        msg = std::make_shared<Message>(type, audioMsg);
-        break;
+        auto audioMsg = QSharedPointer<AudioMessage>(port);
+        return QSharedPointer<Message>(type, audioMsg);
     }
     default:
         return nullptr;
@@ -118,7 +119,7 @@ QSharedPointer<QByteArray> MessageSerial::write(QSharedPointer<Message> message)
     case MessageType::StopAudioStreamRequest:
     case MessageType::StopAudioStreamResponse:
     {
-        auto audioMsg = std::dynamic_pointer_cast<AudioMessage>(message->getData());
+        const auto& audioMsg = message->getData().dynamicCast<AudioMessage>();
         if (audioMsg) {
             stream << audioMsg->port;
         }

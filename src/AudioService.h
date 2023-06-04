@@ -23,117 +23,100 @@ class AudioPlayer : public QObject {
     Q_OBJECT
 public:
     explicit AudioPlayer(QSharedPointer<QIODevice> sourceDevice, const QAudioFormat& audioFormat, QObject* parent = nullptr)
-        : QObject(parent), sourceDevice(sourceDevice), audioFormat(audioFormat), audioDecoder(this)
+        : QObject(parent), sourceDevice(sourceDevice), audioFormat(audioFormat), audioDecoder(this),
+        mediaPlayer(new QMediaPlayer), audioOutput(new QAudioOutput)
     {
         audioDecoder.setSourceDevice(sourceDevice.data());
         connect(&audioDecoder, &QAudioDecoder::bufferReady, this, &AudioPlayer::readAudioData);
+        connect(sourceDevice.data(), &QIODevice::readyRead, this, &AudioPlayer::readAudioData);
 
-        connect(&audioDecoder, SIGNAL(bufferReady()), this, SLOT(readAudioData()));
-        connect(sourceDevice.data(), SIGNAL(readyRead()), this, SLOT(readAudioData()));
-        connect(this, SIGNAL(audioDataRequested(QSharedPointer<QIODevice>)), this, SLOT(provideAudioData(QSharedPointer<QIODevice>)));
-        connect(this, SIGNAL(audioBufferRead(QSharedPointer<QAudioBuffer>)), this, SLOT(provideAudioData(QSharedPointer<QAudioBuffer>)));
-        connect(sourceDevice.data(), SIGNAL(readyRead()), this, SLOT(playAudioData()));
         audioDecoder.start();
     }
-    QSharedPointer<QAudioDecoder> getAudioDecoder() {
-        return QSharedPointer<QAudioDecoder>(&audioDecoder);
-    }
+    virtual ~AudioPlayer() = default();
 signals:
     void audioDataRequested(QSharedPointer<QIODevice> targetDevice);
     void audioBufferRead(QSharedPointer<QAudioBuffer> targetDevice);
     void audioDataProvided(QAudioDevice targetDevice);
+
 public slots:
     void readAudioData()
     {
         QAudioBuffer audioBuffer = audioDecoder.read();
-        QSharedPointer<QAudioBuffer> audioBufferPtr = QSharedPointer<QAudioBuffer>(&audioBuffer);
+        QSharedPointer<QAudioBuffer> audioBufferPtr = QSharedPointer<QAudioBuffer>::create(audioBuffer);
         emit audioBufferRead(audioBufferPtr);
     }
+
     void provideAudioData(QSharedPointer<QIODevice> targetDevice)
     {
         audioDecoder.start();
         emit audioDataRequested(targetDevice);
     }
+
     void playAudioData(QSharedPointer<QAudioBuffer> audioBufferPtr)
     {
-        QMediaPlayer* mediaPlayer = new QMediaPlayer;
-        QAudioOutput* audioOutput = new QAudioOutput;
-        audioBufferPtr.data();
         mediaPlayer->setSourceDevice(sourceDevice.data());
         mediaPlayer->setAudioOutput(audioOutput);
         mediaPlayer->play();
         emit audioDataProvided(audioOutput->device());
     }
-    void receiveAudioData(QByteArray& audioData)  {
-        QBuffer audioBuffer(&audioData);
-        audioBuffer.open(QIODevice::ReadOnly);
-        audioOutput->start(&audioBuffer);
-    }
 
 private:
-    QScopedPointer<QAudioOutput> audioOutput; 
+    QSharedPointer<QIODevice> sourceDevice;
     QAudioFormat audioFormat;
     QAudioDecoder audioDecoder;
-    QSharedPointer<QIODevice> sourceDevice;
+    QMediaPlayer* mediaPlayer;
+    QScopedPointer<QAudioOutput> audioOutput;
 };
+
 
 class AudioCapture : public QObject
 {
     Q_OBJECT
 
 public:
-    AudioCapture(QAudioFormat format)
-    {
-        audio = new QAudioInput(format, this);
-    }
-    AudioCapture()
-    {
-        QAudioFormat format;
-        format.setSampleRate(8000);
-        format.setChannelCount(1);
-        format.setSampleSize(8);
-        format.setCodec("audio/pcm");
-        format.setByteOrder(QAudioFormat::LittleEndian);
-        format.setSampleType(QAudioFormat::UnSignedInt);
+    explicit AudioCapture(QAudioFormat format, QObject* parent = nullptr)
+        : QObject(parent), audio(new QAudioInput(format, this))
+    {}
 
-        QAudioDeviceInfo info = QAudioDeviceInfo::defaultInputDevice();
-        if (!info.isFormatSupported(format)) {
-            qWarning() << "Default format not supported, trying to use the nearest.";
-            format = info.nearestFormat(format);
-        }
-        audio = new QAudioInput(format, this);
-    }
     void start() {
         device = audio->start();
-        connect(device, SIGNAL(readyRead()), SLOT(readData()));
+        connect(device, &QIODevice::readyRead, this, &AudioCapture::readData);
     }
+    virtual ~AudioCapture() = default();
 public slots:
     void readData() {
         QByteArray data = device->readAll();
         emit audioDataProvided(data);
     }
+
 signals:
     void audioDataProvided(const QByteArray& audioData);
+
 private:
-    QAudioInput *audio;
-    QIODevice *device;
+    QScopedPointer<QAudioInput> audio;
+    QIODevice* device = nullptr;
 };
 
 class AudioStreamer : public QObject {
     Q_OBJECT
 
 public:
-    explicit AudioStreamer(QSharedPointer<QAbstractSocket> socket, QObject* parent = nullptr)
+    explicit AudioStreamer(QHostAddress multicastGroupAddress, quint16 multicastPort, QObject* parent = nullptr)
         : QObject(parent)
-        , socket(socket)
-        , multicastGroupAddress("239.255.0.1") // Example multicast group address
-        , multicastPort(12345) // Example multicast port
+        , multicastGroupAddress(multicastGroupAddress)
+        , multicastPort(multicastPort)
     {
-        this->socket->setSocketOption(QAbstractSocket::MulticastTtlOption, 1); // Set TTL to 1 for local network
-        this->socket->setSocketOption(QAbstractSocket::MulticastLoopbackOption, true); // Enable loopback for testing
-        this->socket->bind(QHostAddress::AnyIPv4, multicastPort, QUdpSocket::ReuseAddressHint | QUdpSocket::ShareAddress);
-        this->socket->joinMulticastGroup(multicastGroupAddress);
-        connect(this, SIGNAL(audioDataProvided(QByteArray&)), this, SLOT(writeAudioDataBytes(QByteArray&)));
+        QUdpSocket * udpSocket = new QUdpSocket();
+        udpSocket->joinMulticastGroup(multicastGroupAddress);
+        udpSocket->setSocketOption(QAbstractSocket::MulticastTtlOption, 1); // Set TTL to 1 for local network
+        udpSocket->setSocketOption(QAbstractSocket::MulticastLoopbackOption, true); // Enable loopback for testing
+        udpSocket->bind(multicastGroupAddress, multicastPort, QUdpSocket::ReuseAddressHint | QUdpSocket::ShareAddress);
+        this->socket = QSharedPointer<QAbstractSocket> (udpSocket);
+        connect(this, &AudioStreamer::audioDataProvided, this, &AudioStreamer::writeAudioDataBytes);
+    }
+    explicit AudioStreamer(const QSharedPointer<QAbstractSocket>& socket, QObject* parent = nullptr)
+        : QObject(parent), socket(socket)
+    {
         connect(this, &AudioStreamer::audioDataProvided, this, &AudioStreamer::writeAudioDataBytes);
     }
     virtual ~AudioStreamer() {
@@ -141,22 +124,21 @@ public:
             socket->disconnectFromHost();
         }
     }
-    void receiveAudioData(QByteArray& audioData) override {
+    void receiveAudioData(const QByteArray& audioData) {
         QByteArray audioStream;
         QDataStream stream(&audioStream, QIODevice::WriteOnly);
         stream << audioData;
         if (socket->isOpen()) {
-            socket->write(audioStream.data(), audioStream.size());
+            socket->write(audioStream);
         }
     }
-    QSharedPointer<QAbstractSocket> getSocket() const { return socket; }
+    QSharedPointer<QAbstractSocket> getSocket() const {
+        return socket;
+    }
 public slots:
-    void writeAudioDataBytes(QByteArray& audioStream)
-    {
-        QDataStream stream(&audioStream, QIODevice::WriteOnly);
-        stream << audioData;
+    void writeAudioDataBytes(QByteArray& audioData) {
         if (socket->isOpen()) {
-            socket->write(audioStream.data(), audioStream.size());
+            socket->write(audioData);
         }
     }
 signals:
@@ -170,6 +152,44 @@ private:
 /**
  * @brief Class that controls the audio streaming and playing services.
  */
+class AudioService : public QObject {
+    Q_OBJECT
+
+public:
+    explicit AudioService(QSharedPointer<AudioPlayer> player, QSharedPointer<AudioStreamer> streamer, QObject* parent = nullptr)
+        : QObject(parent), audioPlayer(player), audioStreamer(streamer)
+    {
+        connect(audioPlayer.data(), &AudioPlayer::audioDataRequested, this, &AudioService::audioDataRequested);
+        connect(audioStreamer.data(), &AudioStreamer::audioDataProvided, this, &AudioService::handleAudioDataProvided);
+    }
+
+    QSharedPointer<AudioPlayer> getAudioPlayer() const {
+        return audioPlayer;
+    }
+
+    QSharedPointer<AudioStreamer> getAudioStreamer() const {
+        return audioStreamer;
+    }
+
+    void setSSRCIdentifier(qint32 ssrcIdentifier) {
+        this->ssrcIdentifier = ssrcIdentifier;
+    }
+
+public slots:
+    void handleAudioDataProvided(const QByteArray& audioData) {
+        audioStreamer->receiveAudioData(audioData);
+    }
+
+signals:
+    void audioDataRequested(QSharedPointer<QIODevice> socket);
+
+private:
+    QSharedPointer<AudioPlayer> audioPlayer;
+    QSharedPointer<AudioStreamer> audioStreamer;
+    qint32 ssrcIdentifier = 0;
+};
+
+/* TODO: review above implemetation matches below previous version of it
 class AudioService : public QObject {
     Q_OBJECT
 public:
@@ -265,7 +285,7 @@ private:
     QSharedPointer<AudioCapture> audioCapture;
 };
 //qint32 ssrcIdentifier;
-
+*/
 /**
  * @brief MediaAudioPlayer is responsible for playing audio data from local audio source.
  */

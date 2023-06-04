@@ -92,7 +92,7 @@ public:
 
 class AudioMessage : public IMessageData {
 public:
-    explicit AudioMessage(quint16 port): port(port) {}
+    explicit AudioMessage(quint16 port = 3101 /* TODO: temporary static value for port */): port(port) {}
     virtual ~AudioMessage() = default;
     quint16 port;
 };
@@ -101,6 +101,10 @@ class Message
 {
 public:
     Message(MessageType type, QSharedPointer<IMessageData> data): type(type), data(data)
+    {}
+    Message(MessageType type, std::shared_ptr<IMessageData> data): type(type), data(&*data)
+    {}
+    Message(MessageType type, const IMessageData& data): type(type), data(QSharedPointer<IMessageData>::create(data))
     {}
     virtual ~Message() = default;
     MessageType getType() const { return type; }
@@ -121,7 +125,7 @@ private:
     std::shared_ptr<Message> message;
 };
 
-
+/*
 class StartAudioStreamRequest : public AudioMessage {
     Q_OBJECT
 public:
@@ -152,6 +156,7 @@ class StopAudioStreamMessage : public AudioMessage {
 public:
     explicit StopAudioStreamerMessage(QObject* parent = nullptr) : AudioMessage(parent) {}
 };
+*/
 #endif // MESSAGE_H
 
 

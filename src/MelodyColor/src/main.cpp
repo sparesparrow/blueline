@@ -13,16 +13,15 @@ int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
 
     // Create instances of the components
-    AudioRecorder audioRecorder;
     AudioProcessor audioProcessor;
     VisualizerQml visualizerQml;
 
     // Create the controller and pass the instances
-    AudioColorProvider controller(&audioRecorder, &audioProcessor, &visualizerQml);
+    AudioColorProvider controller(&visualizerQml);
 
     // Connect the observer to the controller
-    QObject::connect(&audioVisualizer, &AudioVisualizer::updateAudioData, &audioProcessor, &AudioProcessor::processAudioData);
-    QObject::connect(&audioProcessor, &AudioProcessor::audioParametersReady, &visualizerQml, &VisualizerQml::updateVisualization);
+    QObject::connect(&controller, &AudioColorProvider::audioDataReady, &controller, &AudioColorProvider::readAudioData);
+    QObject::connect(&audioProcessor, &AudioColorProvider::semitoneChanged, &visualizerQml, &VisualizerQml::updateVisualization);
 
     // Register AudioService and AudioColorProvider types
     qmlRegisterType<AudioService>("MelodyColor", 1, 0, "AudioService");

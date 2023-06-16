@@ -69,11 +69,27 @@ private:
     QObject* parent;
 };
 
+// Factory for creating an AudioCapture object
+// Takes in a QAudioFormat object
+class AudioCaptureFactory : public IAudioCaptureFactory {
+public:
+    explicit AudioCaptureFactory()
+    {}
+    virtual ~AudioCaptureFactory() = default;
+
+    // Implementation of the create method that creates an AudioCapture object
+    QSharedPointer<IAudioCapture> create() override
+    {
+        return QSharedPointer<AudioCapture>::create();
+    }
+};
+
+/*
 // Factory for creating a MediaAudioPlayer object
 // Takes in required arguments for creating a MediaAudioPlayer object
 class MediaAudioPlayerFactory : public IAudioPlayerFactory {
 public:
-    explicit MediaAudioPlayerFactory(/* Your arguments here */) {
+    explicit MediaAudioPlayerFactory() { //  Your arguments here
         // initialize your members here
     }
     virtual ~MediaAudioPlayerFactory() = default;
@@ -83,30 +99,11 @@ public:
         // Your implementation here
     }
 };
-// Factory for creating an AudioCapture object
-// Takes in a QAudioFormat object
-class AudioCaptureFactory : public IAudioCaptureFactory {
-public:
-    explicit AudioCaptureFactory(QAudioFormat format)
-        : format(format)
-    {}
-    virtual ~AudioCaptureFactory() = default;
-
-    // Implementation of the create method that creates an AudioCapture object
-    QSharedPointer<IAudioCapture> create() override
-    {
-        return QSharedPointer<AudioCapture>::create(format);
-    }
-
-private:
-    QAudioFormat format;
-};
-
 // Factory for creating an AudioRecorder object
 // Takes in required arguments for creating an AudioRecorder object
 class AudioRecorderFactory : public IAudioCaptureFactory {
 public:
-    explicit AudioRecorderFactory(/* Your arguments here */) {
+    explicit AudioRecorderFactory() { //  Your arguments here
         // initialize your members here
     }
     virtual ~AudioRecorderFactory() = default;
@@ -122,7 +119,6 @@ public:
     virtual ~IAudioHandlerFactory() = default;
     virtual QSharedPointer<IAudioHandler> create() = 0;
 };
-
 
 class MelodyColorControllerFactory : public IAudioHandlerFactory {
 public:
@@ -156,5 +152,5 @@ private:
     QSharedPointer<IAudioPlayer> audioPlayer;
     QSharedPointer<IAudioCapture> audioCapture;
 };
-
+*/
 #endif // AUDIOSERVICEFACTORY_H

@@ -161,16 +161,15 @@ class AudioColorProvider : public QObject, public IAudioDataReceiver
 {
     Q_OBJECT
 public:
-    AudioColorProvider(std::unique_ptr<AudioRecorder> audioRecorder, VisualizerQml* visualizer, QObject* parent = nullptr)
+    AudioColorProvider(VisualizerQml* visualizer, QObject* parent = nullptr)
         : QObject(parent)
     {
         auto audioProcessor = std::make_shared<AudioProcessor>();
-        audioDataHandler = std::make_shared<AudioDataHandler>(std::move(audioRecorder), audioProcessor);
+        audioDataHandler = std::make_shared<AudioDataHandler>(audioProcessor);
         visualizerUpdater = std::make_shared<VisualizerUpdater>(visualizer, audioProcessor);
 
         connect(audioDataHandler.get(), &AudioDataHandler::audioDataReady, visualizerUpdater.get(), &VisualizerUpdater::handleAudioData);
         connect(visualizerUpdater.get(), &VisualizerUpdater::semitoneChanged, this, &AudioColorProvider::semitoneChanged);
-        connect(visualizerUpdater.get(), &VisualizerUpdater::colorChanged, this, &AudioColorProvider::colorChanged);
     }
 
     void handleAudioData(const QByteArray& audioData) override {

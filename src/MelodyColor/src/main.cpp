@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
 
     // Connect the observer to the controller
     QObject::connect(&controller, &AudioColorProvider::audioDataReady, &controller, &AudioColorProvider::readAudioData);
-    QObject::connect(&audioProcessor, &AudioColorProvider::semitoneChanged, &visualizerQml, &VisualizerQml::updateVisualization);
+    QObject::connect(&controller, &AudioColorProvider::semitoneChanged, &visualizerQml, &VisualizerQml::updateVisualization);
 
     // Register AudioService and AudioColorProvider types
     qmlRegisterType<AudioService>("MelodyColor", 1, 0, "AudioService");

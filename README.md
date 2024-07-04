@@ -69,3 +69,8 @@ Contributions to the Blueline Audio Streamer project are welcome! If you find an
 
 Blueline Audio Streamer is licensed under the [GNU General Public License v3.0](./LICENSE). You are free to use, modify, and distribute the software as long as you follow the terms of the license. For more information, visit https://www.gnu.org.
 
+
+# 'Pull requests' from [Hard-Coder](https://chatgpt.com/share/351caa1f-f91f-4cb5-9418-380aa29c8d51):
+
+- [**update.md**](update.md)
+- [**update1.md**](update1.md)
